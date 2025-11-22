@@ -17,7 +17,7 @@ import { AssetCard } from './components/AssetCard';
 import { SettingsModal } from './components/SettingsModal';
 import { TradeHistory } from './components/TradeHistory';
 
-const COLORS = ['#F7931A', '#FFD700', '#2775CA']; // BTC Orange, Gold Yellow, USDC Blue
+const COLORS = ['#F7931A', '#FFD700', '#2775CA', '#10B981', '#8B5CF6', '#EF4444']; 
 
 const App: React.FC = () => {
   const [assets, setAssets] = useState<Asset[]>(INITIAL_ASSETS);
@@ -51,12 +51,12 @@ const App: React.FC = () => {
       // 1. Fetch REAL Prices
       const updatedAssets = await fetchRealPrices(assets, settings.selectedExchange);
       
-      // Check if we actually got prices > 0
-      if (updatedAssets.some(a => a.price > 0)) {
+      // Check if we actually got prices > 0 (simple validation)
+      const hasData = updatedAssets.some(a => a.price > 0);
+      setConnectionStatus(hasData ? 'CONNECTED' : 'DISCONNECTED');
+      
+      if (hasData) {
          setAssets(updatedAssets);
-         setConnectionStatus('CONNECTED');
-      } else {
-         setConnectionStatus('DISCONNECTED'); // Likely API failure
       }
 
       // 2. Calculate Logic
@@ -87,7 +87,7 @@ const App: React.FC = () => {
       setConnectionStatus('DISCONNECTED');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.deltaThreshold, settings.autoExecute, isExecuting, settings.selectedExchange, settings.telegramBotToken, settings.telegramChatId]); 
+  }, [settings.deltaThreshold, settings.autoExecute, isExecuting, settings.selectedExchange, settings.telegramBotToken, settings.telegramChatId, assets.length]); // Added assets.length to dep array to refresh if assets change
 
   // Auto-refresh loop
   useEffect(() => {
@@ -351,6 +351,8 @@ const App: React.FC = () => {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onUpdate={setSettings}
+        assets={assets}
+        onUpdateAssets={setAssets}
       />
     </div>
   );
