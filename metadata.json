@@ -1,0 +1,5 @@
+{
+  "name": "AutoBalance AI",
+  "description": "Automated Portfolio Rebalancer for Hyperliquid & Uniswap powered by Gemini AI",
+  "requestFramePermissions": []
+}
