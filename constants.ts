@@ -1,10 +1,12 @@
 
 import { Asset, Exchange, AppSettings } from './types';
 
-// Hyperliquid Testnet API
-export const HL_API_URL = 'https://api.hyperliquid-testnet.xyz';
-export const HL_INFO_URL = `${HL_API_URL}/info`;
-export const HL_EXCHANGE_URL = `${HL_API_URL}/exchange`;
+// Hyperliquid APIs
+export const HL_MAINNET_API_URL = 'https://api.hyperliquid.xyz'; // For Prices
+export const HL_TESTNET_API_URL = 'https://api.hyperliquid-testnet.xyz'; // For Execution (if Testnet selected)
+
+export const HL_INFO_URL = `${HL_MAINNET_API_URL}/info`; // Always fetch prices from Mainnet
+export const HL_EXCHANGE_URL = `${HL_TESTNET_API_URL}/exchange`; // Default execution on Testnet
 
 export const INITIAL_ASSETS: Asset[] = [
   {

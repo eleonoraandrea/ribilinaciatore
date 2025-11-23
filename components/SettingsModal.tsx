@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { AppSettings, Exchange, Asset } from '../types';
-import { X, Shield, Key, Wallet, Coins, Send, Trash2, Plus, AlertTriangle } from 'lucide-react';
+import { X, Shield, Key, Wallet, Coins, Send, Trash2, Plus, AlertTriangle, Save, RefreshCw } from 'lucide-react';
 import { sendTelegramMessage } from '../services/telegramService';
 
 interface Props {
@@ -15,7 +15,7 @@ interface Props {
 
 export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUpdate, assets, onUpdateAssets }) => {
   const [testMsgStatus, setTestMsgStatus] = useState<'IDLE'|'SENDING'|'OK'|'FAIL'>('IDLE');
-  const [newAsset, setNewAsset] = useState<{symbol: string, percent: string, address: string}>({ symbol: '', percent: '', address: '' });
+  const [newAsset, setNewAsset] = useState<{symbol: string, percent: string, balance: string, address: string}>({ symbol: '', percent: '', balance: '', address: '' });
 
   if (!isOpen) return null;
 
@@ -34,31 +34,45 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
   const handleAddAsset = () => {
     if (!newAsset.symbol || !newAsset.percent) return;
     const allocation = parseFloat(newAsset.percent);
+    const initialBalance = parseFloat(newAsset.balance) || 0;
     
     const asset: Asset = {
         id: newAsset.symbol.toLowerCase(),
         symbol: newAsset.symbol.toUpperCase(),
         name: newAsset.symbol.toUpperCase(),
         price: 0,
-        balance: 0, // Start with 0
+        balance: initialBalance, 
         targetAllocation: allocation,
         address: newAsset.address || undefined,
         isStable: ['USDC','USDT','DAI'].includes(newAsset.symbol.toUpperCase())
     };
     
     onUpdateAssets([...assets, asset]);
-    setNewAsset({ symbol: '', percent: '', address: '' });
+    setNewAsset({ symbol: '', percent: '', balance: '', address: '' });
   };
 
   const handleRemoveAsset = (id: string) => {
     onUpdateAssets(assets.filter(a => a.id !== id));
   };
 
+  const handleUpdateAssetValue = (id: string, field: 'balance' | 'targetAllocation', value: string) => {
+      const numValue = parseFloat(value);
+      if (isNaN(numValue) && value !== '') return;
+      
+      const updatedAssets = assets.map(a => {
+          if (a.id === id) {
+              return { ...a, [field]: value === '' ? 0 : numValue };
+          }
+          return a;
+      });
+      onUpdateAssets(updatedAssets);
+  };
+
   const totalAllocation = assets.reduce((sum, a) => sum + a.targetAllocation, 0);
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-4xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white">
           <X size={24} />
         </button>
@@ -67,7 +81,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
           Configurazione Bot
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             
           {/* LEFT COLUMN: General & Telegram */}
           <div className="space-y-6">
@@ -124,7 +138,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
             {/* Telegram Section */}
             <div className="space-y-4">
                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-800 pb-2 flex items-center gap-2">
-                <Send size={14} /> Telegram
+                <Send size={14} /> Telegram (Segnali)
                 </h3>
                 <div className="grid grid-cols-1 gap-3">
                     <input 
@@ -160,7 +174,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
              {/* Private Key Section */}
              <div className="space-y-4">
                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-800 pb-2 flex items-center gap-2">
-                <Key size={14} /> Wallet (Esecuzione)
+                <Key size={14} /> Wallet (Opzionale)
                 </h3>
                 <input 
                     type="password"
@@ -170,7 +184,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
                     className="w-full bg-gray-850 border border-gray-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-neon-red outline-none font-mono text-xs"
                 />
                 <p className="text-[10px] text-gray-500">
-                    La chiave privata serve solo per firmare le transazioni se abiliti la modalità automatica. Viene salvata solo in memoria locale.
+                    Richiesta solo se usi la Modalità Automatica per firmare transazioni. In modalità manuale viene ignorata.
                 </p>
             </div>
 
@@ -178,48 +192,88 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
 
           {/* RIGHT COLUMN: Asset Management */}
           <div className="space-y-6">
-             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-800 pb-2 flex items-center gap-2 justify-between">
-               <span><Coins size={14} className="inline mr-1"/> Gestione Assets</span>
-               <span className={`text-xs ${Math.abs(totalAllocation - 100) < 0.1 ? 'text-neon-green' : 'text-neon-red'}`}>
-                 Totale: {totalAllocation.toFixed(1)}%
-               </span>
-             </h3>
+             <div className="flex items-center justify-between border-b border-gray-800 pb-2">
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <Coins size={14} className="inline mr-1"/> Configurazione Portafoglio
+                </h3>
+                <span className={`text-xs font-bold ${Math.abs(totalAllocation - 100) < 0.1 ? 'text-neon-green' : 'text-neon-red'}`}>
+                 Allocazione: {totalAllocation.toFixed(1)}% / 100%
+                </span>
+             </div>
 
-             {/* Asset List */}
-             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+             <div className="bg-blue-900/10 border border-blue-900/30 p-3 rounded-lg">
+                <p className="text-xs text-blue-300">
+                   💡 In modalità manuale, inserisci qui il tuo <b>Saldo Attuale</b>. Il bot userà questi valori per calcolare i ribilanciamenti senza connettersi a un wallet.
+                </p>
+             </div>
+
+             {/* Asset List - Editable */}
+             <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
                {assets.map(asset => (
-                 <div key={asset.id} className="bg-gray-850 p-3 rounded-lg flex items-center justify-between group border border-gray-800 hover:border-gray-600">
-                    <div className="flex-1">
+                 <div key={asset.id} className="bg-gray-850 p-4 rounded-lg border border-gray-800 hover:border-gray-600 transition-colors">
+                    <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                            <span className="font-bold text-white">{asset.symbol}</span>
-                            <span className="text-xs bg-gray-700 px-1.5 rounded text-gray-300">{asset.targetAllocation}%</span>
+                            <span className="font-bold text-white text-lg">{asset.symbol}</span>
+                            {asset.address && <span className="text-[9px] text-gray-500 font-mono bg-gray-900 px-1 rounded border border-gray-800">{asset.address.slice(0,4)}...{asset.address.slice(-4)}</span>}
                         </div>
-                        {asset.address && <p className="text-[10px] text-gray-500 font-mono truncate w-32">{asset.address.slice(0,6)}...{asset.address.slice(-4)}</p>}
+                        <button 
+                            onClick={() => handleRemoveAsset(asset.id)}
+                            className="text-gray-600 hover:text-neon-red transition-colors p-1"
+                        >
+                            <Trash2 size={16} />
+                        </button>
                     </div>
-                    <button 
-                        onClick={() => handleRemoveAsset(asset.id)}
-                        className="text-gray-600 hover:text-neon-red transition-colors p-1"
-                    >
-                        <Trash2 size={14} />
-                    </button>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Saldo (Qtà)</label>
+                            <input 
+                                type="number"
+                                value={asset.balance}
+                                onChange={(e) => handleUpdateAssetValue(asset.id, 'balance', e.target.value)}
+                                className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white text-sm font-mono focus:border-neon-blue outline-none"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] text-gray-500 uppercase font-bold mb-1">Target %</label>
+                            <div className="relative">
+                                <input 
+                                    type="number"
+                                    value={asset.targetAllocation}
+                                    onChange={(e) => handleUpdateAssetValue(asset.id, 'targetAllocation', e.target.value)}
+                                    className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white text-sm font-mono focus:border-neon-purple outline-none"
+                                />
+                                <span className="absolute right-3 top-2 text-gray-500 text-xs">%</span>
+                            </div>
+                        </div>
+                    </div>
                  </div>
                ))}
              </div>
 
              {/* Add New Asset Form */}
-             <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700 border-dashed">
-                <p className="text-xs text-gray-400 mb-3 font-bold uppercase">Aggiungi Asset</p>
-                <div className="grid grid-cols-2 gap-2 mb-2">
+             <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700 border-dashed mt-4">
+                <p className="text-xs text-gray-400 mb-3 font-bold uppercase flex items-center gap-2">
+                    <Plus size={12} /> Aggiungi Nuovo Asset
+                </p>
+                <div className="grid grid-cols-3 gap-2 mb-2">
                     <input 
                         type="text" 
-                        placeholder="Symbol (e.g. WBTC)"
+                        placeholder="SIMBOLO (es. ETH)"
                         value={newAsset.symbol}
                         onChange={e => setNewAsset({...newAsset, symbol: e.target.value})}
                         className="bg-gray-900 border border-gray-700 rounded p-2 text-white text-xs outline-none uppercase"
                     />
                     <input 
                         type="number" 
-                        placeholder="Target % (e.g. 33)"
+                        placeholder="Saldo Iniziale"
+                        value={newAsset.balance}
+                        onChange={e => setNewAsset({...newAsset, balance: e.target.value})}
+                        className="bg-gray-900 border border-gray-700 rounded p-2 text-white text-xs outline-none"
+                    />
+                    <input 
+                        type="number" 
+                        placeholder="Target %"
                         value={newAsset.percent}
                         onChange={e => setNewAsset({...newAsset, percent: e.target.value})}
                         className="bg-gray-900 border border-gray-700 rounded p-2 text-white text-xs outline-none"
@@ -227,7 +281,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
                 </div>
                 <input 
                     type="text" 
-                    placeholder="Contract Address (0x...) - Opzionale su Hyperliquid"
+                    placeholder="Contract Address (0x...) - Opzionale"
                     value={newAsset.address}
                     onChange={e => setNewAsset({...newAsset, address: e.target.value})}
                     className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white text-xs outline-none font-mono mb-3"
@@ -237,15 +291,15 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
                     disabled={!newAsset.symbol || !newAsset.percent}
                     className="w-full bg-gray-700 hover:bg-neon-blue hover:text-white text-gray-300 text-xs font-bold py-2 rounded transition-colors flex items-center justify-center gap-2"
                 >
-                    <Plus size={14} /> Aggiungi alla Strategia
+                    Aggiungi alla Strategia
                 </button>
              </div>
 
              {Math.abs(totalAllocation - 100) > 0.1 && (
-                 <div className="flex items-start gap-2 p-3 bg-neon-red/10 border border-neon-red/20 rounded-lg">
+                 <div className="flex items-start gap-2 p-3 bg-neon-red/10 border border-neon-red/20 rounded-lg animate-pulse">
                     <AlertTriangle size={16} className="text-neon-red shrink-0 mt-0.5" />
-                    <p className="text-xs text-neon-red">
-                        Attenzione: L'allocazione totale è {totalAllocation.toFixed(1)}%. Deve essere esattamente 100% per il corretto funzionamento del rebalancing.
+                    <p className="text-xs text-neon-red font-bold">
+                        Errore Allocazione: Il totale è {totalAllocation.toFixed(1)}%. Devi raggiungere esattamente il 100% per salvare.
                     </p>
                  </div>
              )}
@@ -253,12 +307,18 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, settings, onUp
           </div>
         </div>
 
-        <div className="mt-8 pt-4 border-t border-gray-800">
+        <div className="mt-8 pt-4 border-t border-gray-800 flex justify-end">
           <button 
             onClick={onClose}
-            className="w-full bg-neon-blue hover:bg-blue-600 text-white font-bold py-3 rounded-lg transition-all shadow-lg shadow-blue-900/30"
+            disabled={Math.abs(totalAllocation - 100) > 0.1}
+            className={`
+                px-8 py-3 rounded-lg font-bold text-white transition-all shadow-lg flex items-center gap-2
+                ${Math.abs(totalAllocation - 100) > 0.1 
+                    ? 'bg-gray-700 cursor-not-allowed opacity-50' 
+                    : 'bg-neon-blue hover:bg-blue-600 shadow-blue-900/30'}
+            `}
           >
-            Salva Configurazione
+            <Save size={18} /> Salva e Chiudi
           </button>
         </div>
       </div>

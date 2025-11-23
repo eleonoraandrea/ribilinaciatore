@@ -1,5 +1,6 @@
+
 import { Asset, Exchange } from '../types';
-import { HL_INFO_URL } from '../constants';
+import { HL_MAINNET_API_URL } from '../constants';
 
 // Cache structure to prevent rate limiting
 let priceCache: Record<string, number> = {};
@@ -19,9 +20,10 @@ export const fetchRealPrices = async (currentAssets: Asset[], exchange: Exchange
 
   const newPrices: Record<string, number> = {};
 
-  // 1. Try Fetching from Hyperliquid API (Best source for BTC, ETH, SOL, etc.)
+  // 1. Try Fetching from Hyperliquid MAINNET API 
+  // We utilize Mainnet for pricing even if trading on Testnet to ensure accurate valuation.
   try {
-    const hlResponse = await fetch(HL_INFO_URL, {
+    const hlResponse = await fetch(`${HL_MAINNET_API_URL}/info`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'allMids' })
